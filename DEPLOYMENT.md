@@ -11,15 +11,15 @@ JobPulse currently stores tracked roles, compares resume keywords, prepares appl
 
 Do not advertise automatic job scraping or application submission until those integrations are implemented and tested.
 
-## Netlify and Supabase
+## Netlify and Neon
 
-1. In Supabase, open project `gylzlnwcnicvnbcauudo`, choose **Connect**, and copy its PostgreSQL connection string using the **Session pooler** option. The project URL (`https://gylzlnwcnicvnbcauudo.supabase.co`) and anon key are not database credentials. Do not put the database password or connection string in source control or chat.
-2. Deploy the repository to the new Netlify site `jobpulse-job-search`. The included `netlify.toml` selects the Next.js plugin and Node.js 22.
+1. In Neon, open the `jobpulse` project, choose the production branch and `neondb` database, then copy its pooled PostgreSQL connection string. Do not put the database password or connection string in source control or chat.
+2. The GitHub Actions workflow at `.github/workflows/netlify-deploy.yml` deploys the `main` branch to the Netlify site `jobpulse-job-search` on Ubuntu. The included `netlify.toml` selects the Next.js plugin and Node.js 22.
 3. Configure these Netlify environment variables for the production deploy context:
 
    | Variable | Purpose |
    | --- | --- |
-   | `DATABASE_URL` | Supabase Session pooler PostgreSQL URI, with SSL enabled |
+   | `DATABASE_URL` | Neon pooled PostgreSQL URI, with SSL enabled |
    | `AUTH_SECRET` | Random session-signing secret, at least 32 bytes |
    | `INBOX_ENCRYPTION_KEY` | Random secret used to encrypt mailbox app passwords at rest; keep it stable |
    | `NEXT_PUBLIC_APP_URL` | Public HTTPS URL of the deployed app |
@@ -40,15 +40,15 @@ Do not advertise automatic job scraping or application submission until those in
 
    Run this separately for `AUTH_SECRET`, `INBOX_ENCRYPTION_KEY`, and `CRON_SECRET`. Changing `INBOX_ENCRYPTION_KEY` makes previously encrypted mailbox passwords unreadable.
 
-5. Apply the schema to the new Supabase database. For a new, empty project, open the Supabase **SQL Editor**, create a query, paste the contents of `drizzle/0000_initial_schema.sql`, and run it. Do not run this initial schema on a database that already contains JobPulse tables or data.
+5. Apply the schema to the Neon database. For a new, empty database, temporarily put its connection URI in the git-ignored `.env.local` as `DATABASE_URL`, then run:
 
    ```powershell
-   # Alternative from a trusted local machine:
-   # Put the Session pooler URI temporarily in the git-ignored .env.local DATABASE_URL.
    npx.cmd drizzle-kit push
    ```
 
-   The command applies the schema in `src/db/schema.ts`. Confirm the selected Supabase project before proceeding; back up any database that already contains data.
+   The command applies the schema in `src/db/schema.ts`. Confirm the selected Neon project before proceeding; back up any database that already contains data.
+
+6. Configure GitHub Actions repository secret `NETLIFY_AUTH_TOKEN` with a Netlify personal access token. Also configure the repository secret `DATABASE_URL` for the scraper. The Netlify deploy workflow only needs the Netlify token; the site ID is already configured in the workflow. Never put either token or database URI in repository variables or source files.
 
 ## Google, Outlook, and LinkedIn sign-in
 
@@ -79,7 +79,7 @@ For Greenhouse, `board` is the board token; for Lever, it is the site slug. The 
 
 The workflow is public if this repository is public, but `DATABASE_URL` must be stored as a GitHub Actions secret, not in the workflow or repository variables. Restrict write access to trusted maintainers. Scheduled runs can be delayed by GitHub and require an enabled workflow on the repository's default branch.
 
-The GitHub Actions database secret should use the same Supabase Session pooler URI as Netlify. Keep it a repository **secret**, never a variable.
+The GitHub Actions database secret should use the same Neon pooled URI as Netlify. Keep it a repository **secret**, never a variable.
 
 ## Connecting an inbox
 
