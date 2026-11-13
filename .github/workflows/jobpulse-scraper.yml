@@ -20,11 +20,25 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       JOB_SOURCES_JSON: ${{ vars.JOB_SOURCES_JSON }}
     steps:
+      - name: Check scraper configuration
+        id: config
+        shell: bash
+        run: |
+          if [[ -z "$DATABASE_URL" || -z "$JOB_SOURCES_JSON" ]]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping scraper: add DATABASE_URL and JOB_SOURCES_JSON to repository settings."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
+        if: steps.config.outputs.configured == 'true'
       - uses: actions/setup-node@v4
+        if: steps.config.outputs.configured == 'true'
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+        if: steps.config.outputs.configured == 'true'
       - name: Fetch configured employer feeds
         run: npm run scrape
+        if: steps.config.outputs.configured == 'true'
