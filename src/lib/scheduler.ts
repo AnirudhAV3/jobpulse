@@ -33,6 +33,13 @@ export async function schedulerStatusForUser(userId: number) {
     enabled && lastRunAt
       ? new Date(new Date(lastRunAt).getTime() + intervalMinutes * 60_000).toISOString()
       : null;
+  let configured = false;
+  try {
+    const sources: unknown = JSON.parse(process.env.JOB_SOURCES_JSON ?? "null");
+    configured = Array.isArray(sources) && sources.length > 0;
+  } catch {
+    configured = false;
+  }
 
   return {
     enabled,
@@ -43,6 +50,6 @@ export async function schedulerStatusForUser(userId: number) {
     seeded: Boolean(user?.lastRunAt),
     companies: 0,
     scheduler: "github-actions",
-    configured: Boolean(process.env.JOB_SOURCES_JSON),
+    configured,
   };
 }

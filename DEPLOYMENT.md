@@ -11,15 +11,15 @@ JobPulse currently stores tracked roles, compares resume keywords, prepares appl
 
 Do not advertise automatic job scraping or application submission until those integrations are implemented and tested.
 
-## Netlify and database
+## Netlify and Supabase
 
-1. Provision a managed PostgreSQL database with TLS enabled.
-2. Deploy the repository to Netlify. The included `netlify.toml` selects the Next.js plugin and Node.js 22.
+1. In Supabase, open project `gylzlnwcnicvnbcauudo`, choose **Connect**, and copy its PostgreSQL connection string using the **Session pooler** option. The project URL (`https://gylzlnwcnicvnbcauudo.supabase.co`) and anon key are not database credentials. Do not put the database password or connection string in source control or chat.
+2. Deploy the repository to the new Netlify site `jobpulse-job-search`. The included `netlify.toml` selects the Next.js plugin and Node.js 22.
 3. Configure these Netlify environment variables for the production deploy context:
 
    | Variable | Purpose |
    | --- | --- |
-   | `DATABASE_URL` | PostgreSQL connection string, including the provider's SSL parameters |
+   | `DATABASE_URL` | Supabase Session pooler PostgreSQL URI, with SSL enabled |
    | `AUTH_SECRET` | Random session-signing secret, at least 32 bytes |
    | `INBOX_ENCRYPTION_KEY` | Random secret used to encrypt mailbox app passwords at rest; keep it stable |
    | `NEXT_PUBLIC_APP_URL` | Public HTTPS URL of the deployed app |
@@ -40,22 +40,24 @@ Do not advertise automatic job scraping or application submission until those in
 
    Run this separately for `AUTH_SECRET`, `INBOX_ENCRYPTION_KEY`, and `CRON_SECRET`. Changing `INBOX_ENCRYPTION_KEY` makes previously encrypted mailbox passwords unreadable.
 
-5. Apply schema changes to the provisioned database using the installed Drizzle CLI:
+5. Apply the schema to the new Supabase database. For a new, empty project, open the Supabase **SQL Editor**, create a query, paste the contents of `drizzle/0000_initial_schema.sql`, and run it. Do not run this initial schema on a database that already contains JobPulse tables or data.
 
    ```powershell
-   npx drizzle-kit push
+   # Alternative from a trusted local machine:
+   # Put the Session pooler URI temporarily in the git-ignored .env.local DATABASE_URL.
+   npx.cmd drizzle-kit push
    ```
 
-   Back up the database before applying schema changes to an existing production database.
+   The command applies the schema in `src/db/schema.ts`. Confirm the selected Supabase project before proceeding; back up any database that already contains data.
 
 ## Google, Outlook, and LinkedIn sign-in
 
 The sign-in page offers Google, Outlook, and LinkedIn using an OAuth authorization-code flow with PKCE and state validation. Register the following exact redirect URIs with each provider, replacing the host with the deployed site's origin:
 
 ```text
-https://your-site.netlify.app/api/auth/oauth?provider=google
-https://your-site.netlify.app/api/auth/oauth?provider=outlook
-https://your-site.netlify.app/api/auth/oauth?provider=linkedin
+https://jobpulse-job-search.netlify.app/api/auth/oauth?provider=google
+https://jobpulse-job-search.netlify.app/api/auth/oauth?provider=outlook
+https://jobpulse-job-search.netlify.app/api/auth/oauth?provider=linkedin
 ```
 
 Set each provider's client ID and secret in Netlify. Apply the updated Drizzle schema before enabling sign-in; it adds a unique provider-subject mapping to users. Existing email/password accounts can be linked only when the OAuth provider marks the same email verified. Google and LinkedIn accounts also require a verified email when creating a new account. Microsoft may provide a stable account identity and username without an `email_verified` claim; in that case, JobPulse allows a provider-bound Outlook account but will not link it to an existing account with the same email. There is no default password or automatic mailbox/device permission grant.
@@ -76,6 +78,8 @@ The workflow at `.github/workflows/jobpulse-scraper.yml` runs every five minutes
 For Greenhouse, `board` is the board token; for Lever, it is the site slug. The worker supports only those public job-board feeds. Add only boards you are authorized to access and have reviewed for source terms. Users must enable scheduled scraping in their account; their saved role, location, and avoided-company preferences are applied to results.
 
 The workflow is public if this repository is public, but `DATABASE_URL` must be stored as a GitHub Actions secret, not in the workflow or repository variables. Restrict write access to trusted maintainers. Scheduled runs can be delayed by GitHub and require an enabled workflow on the repository's default branch.
+
+The GitHub Actions database secret should use the same Supabase Session pooler URI as Netlify. Keep it a repository **secret**, never a variable.
 
 ## Connecting an inbox
 

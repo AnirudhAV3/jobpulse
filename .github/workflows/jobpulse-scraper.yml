@@ -24,7 +24,7 @@ jobs:
         id: config
         shell: bash
         run: |
-          if [[ -z "$DATABASE_URL" || -z "$JOB_SOURCES_JSON" ]]; then
+          if [[ -z "$DATABASE_URL" || -z "$JOB_SOURCES_JSON" || "$JOB_SOURCES_JSON" == "[]" ]]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
             echo "Skipping scraper: add DATABASE_URL and JOB_SOURCES_JSON to repository settings."
           else
