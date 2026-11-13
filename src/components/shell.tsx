@@ -49,12 +49,6 @@ export default function Shell({ children }: { children: ReactNode }) {
   const prevUnread = useRef<number | null>(null);
 
   useEffect(() => {
-    const authError = new URLSearchParams(window.location.search).get("authError");
-    if (authError) {
-      window.sessionStorage.setItem("jobpulse_oauth_error", authError);
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-
     void (async () => {
       try {
         const res = await fetch("/api/auth", { cache: "no-store", credentials: "include" });

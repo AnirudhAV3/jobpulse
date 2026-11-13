@@ -63,11 +63,13 @@ const PROVIDERS: {
 ];
 
 const OAUTH_ERRORS: Record<string, string> = {
-  oauth_not_configured: "This provider is not configured for this deployment yet.",
+  oauth_not_configured:
+    "Sign-in with this provider is not configured yet. Add its OAuth client ID and secret in Netlify, then redeploy.",
   account_provider_mismatch: "This email is already linked to another sign-in method. Use that method to sign in.",
   oauth_state_invalid: "The sign-in request expired or could not be verified. Please try again.",
   provider_authorization_failed: "The provider cancelled or could not complete sign-in.",
   oauth_email_unverified: "Your provider did not confirm this email address. Verify it with the provider and try again.",
+  oauth_failed: "Sign-in could not be completed. Check the provider configuration and try again.",
 };
 
 const FEATURES = [
@@ -107,15 +109,24 @@ export default function AuthGate({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const oauthError = window.sessionStorage.getItem("jobpulse_oauth_error");
+    const url = new URL(window.location.href);
+    const oauthError =
+      url.searchParams.get("authError") ??
+      window.sessionStorage.getItem("jobpulse_oauth_error");
     if (!oauthError) return;
     const timer = window.setTimeout(
-      () => {
-        setError(OAUTH_ERRORS[oauthError] ?? "Sign-in failed. Please try again.");
-        window.sessionStorage.removeItem("jobpulse_oauth_error");
-      },
+      () => setError(OAUTH_ERRORS[oauthError] ?? "Sign-in failed. Please try again."),
       0
     );
+    window.sessionStorage.removeItem("jobpulse_oauth_error");
+    if (url.searchParams.has("authError")) {
+      url.searchParams.delete("authError");
+      window.history.replaceState(
+        {},
+        "",
+        `${url.pathname}${url.search}${url.hash}`
+      );
+    }
     return () => window.clearTimeout(timer);
   }, []);
 
