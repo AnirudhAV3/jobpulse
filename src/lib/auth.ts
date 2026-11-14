@@ -14,12 +14,23 @@ export const SESSION_COOKIE = "jobpulse_session";
 export const DEFAULT_TARGET_ROLE = "Business Analyst (BA)";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
+export class AuthConfigurationError extends Error {
+  constructor() {
+    super("AUTH_SECRET must be set to a random value of at least 32 bytes");
+    this.name = "AuthConfigurationError";
+  }
+}
+
 function getSecret(): string {
   const secret = process.env.AUTH_SECRET;
   if (!secret || Buffer.byteLength(secret) < 32) {
-    throw new Error("AUTH_SECRET must be set to a random value of at least 32 bytes");
+    throw new AuthConfigurationError();
   }
   return secret;
+}
+
+export function assertAuthConfigured(): void {
+  getSecret();
 }
 
 export function hashPassword(password: string): string {
@@ -121,8 +132,13 @@ export async function requireUser(): Promise<typeof users.$inferSelect> {
  * Provisions a brand-new, strictly isolated empty board for a newly registered user,
  * with "Business Analyst (BA)" pre-configured as the default Target Job Role.
  */
-export async function provisionFreshBoardForUser(user: typeof users.$inferSelect): Promise<void> {
-  await db
+type BoardProvisioner = Pick<typeof db, "insert">;
+
+export async function provisionFreshBoardForUser(
+  user: typeof users.$inferSelect,
+  executor: BoardProvisioner = db
+): Promise<void> {
+  await executor
     .insert(resumes)
     .values({
       userId: user.id,
@@ -131,7 +147,7 @@ export async function provisionFreshBoardForUser(user: typeof users.$inferSelect
     })
     .onConflictDoNothing({ target: resumes.userId });
 
-  await db
+  await executor
     .insert(targetRoles)
     .values({
       userId: user.id,

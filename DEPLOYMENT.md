@@ -23,9 +23,6 @@ Do not advertise automatic job scraping or application submission until those in
    | `AUTH_SECRET` | Random session-signing secret, at least 32 bytes |
    | `INBOX_ENCRYPTION_KEY` | Random secret used to encrypt mailbox app passwords at rest; keep it stable |
    | `NEXT_PUBLIC_APP_URL` | Public HTTPS URL of the deployed app |
-   | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in OAuth web client |
-   | `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | Microsoft/Outlook sign-in app |
-   | `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` | LinkedIn OpenID Connect app |
    | `VAPID_PUBLIC_KEY` | Public Web Push application-server key; optional until push is enabled |
    | `VAPID_PRIVATE_KEY` | Private Web Push key; keep secret |
    | `VAPID_CONTACT` | A contact URI, for example `mailto:admin@example.com` |
@@ -50,27 +47,9 @@ Do not advertise automatic job scraping or application submission until those in
 
 6. Configure GitHub Actions repository secret `NETLIFY_AUTH_TOKEN` with a Netlify personal access token. Also configure the repository secret `DATABASE_URL` for the scraper. The Netlify deploy workflow only needs the Netlify token; the site ID is already configured in the workflow. Never put either token or database URI in repository variables or source files.
 
-## Google, Outlook, and LinkedIn sign-in
+## Sign-in
 
-The sign-in page offers Google, Outlook, and LinkedIn using an OAuth authorization-code flow with PKCE and state validation. Register the following exact redirect URIs with each provider, replacing the host with the deployed site's origin:
-
-```text
-https://jobpulse-job-search.netlify.app/api/auth/oauth?provider=google
-https://jobpulse-job-search.netlify.app/api/auth/oauth?provider=outlook
-https://jobpulse-job-search.netlify.app/api/auth/oauth?provider=linkedin
-```
-
-Create a web OAuth app in Google Cloud, Microsoft Entra, and the LinkedIn Developer portal. Add the matching redirect URI above to each app's allowed redirect URIs; enable Google's OAuth consent screen and add test users if the Google app is still in testing. Then add the matching client ID and client secret to the Netlify project's production environment:
-
-| Provider | Netlify variables |
-| --- | --- |
-| Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
-| Outlook / Microsoft | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` |
-| LinkedIn | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` |
-
-Save the variables and trigger a new production deploy; changing Netlify environment variables does not update an already-running deployment. If a button returns to sign-in with “not configured,” one or both credentials for that provider are missing from the deployed environment. Apply the updated Drizzle schema before enabling sign-in; it adds a unique provider-subject mapping to users. Existing email/password accounts can be linked only when the OAuth provider marks the same email verified. Google and LinkedIn accounts also require a verified email when creating a new account. Microsoft may provide a stable account identity and username without an `email_verified` claim; in that case, JobPulse allows a provider-bound Outlook account but will not link it to an existing account with the same email. There is no default password or automatic mailbox/device permission grant.
-
-OAuth credentials and correctly registered callback URLs are deployment prerequisites; showing a provider button does not mean that provider is configured. For local sign-in, set provider credentials and `NEXT_PUBLIC_APP_URL=http://localhost:3000`, then register matching localhost callback URIs where the provider allows them.
+JobPulse uses email and password sign-in. Email/password accounts remain available; provider-based sign-in is currently disabled.
 
 ## GitHub Actions scraper
 

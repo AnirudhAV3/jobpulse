@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import {
+  AuthConfigurationError,
+  assertAuthConfigured,
   cookieOptionsForRequest,
   getCurrentUser,
   hashPassword,
@@ -57,32 +59,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (mode !== "login" && mode !== "register") {
+      return NextResponse.json({ error: "Unsupported authentication mode" }, { status: 400 });
+    }
+
+    assertAuthConfigured();
+
     if (mode === "register") {
       const name = (body.name ?? "").trim();
       if (!name || name.length < 2) {
         return NextResponse.json({ error: "Enter your full name" }, { status: 400 });
       }
 
-      const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      if (existing) {
+      const created = await db.transaction(async (tx) => {
+        const [existing] = await tx.select().from(users).where(eq(users.email, email)).limit(1);
+        if (existing) return null;
+
+        const [user] = await tx
+          .insert(users)
+          .values({
+            email,
+            name,
+            passwordHash: hashPassword(password),
+            schedulerEnabled: true,
+            intervalMinutes: 5,
+          })
+          .returning();
+
+        await provisionFreshBoardForUser(user, tx);
+        return user;
+      });
+
+      if (!created) {
         return NextResponse.json(
           { error: "An account with this email already exists. Sign in instead." },
           { status: 409 }
         );
       }
-
-      const [created] = await db
-        .insert(users)
-        .values({
-          email,
-          name,
-          passwordHash: hashPassword(password),
-          schedulerEnabled: true,
-          intervalMinutes: 5,
-        })
-        .returning();
-
-      await provisionFreshBoardForUser(created);
 
       const token = signSessionToken(created.id, created.email);
       const res = NextResponse.json({
@@ -112,6 +125,23 @@ export async function POST(req: NextRequest) {
     return res;
   } catch (err) {
     console.error("[api/auth POST]", err);
+    if (err instanceof AuthConfigurationError) {
+      return NextResponse.json(
+        { error: "Authentication is temporarily unavailable. Please contact the site administrator." },
+        { status: 503 }
+      );
+    }
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      err.code === "23505"
+    ) {
+      return NextResponse.json(
+        { error: "An account with this email already exists. Sign in instead." },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: "Authentication failed" }, { status: 500 });
   }
 }
