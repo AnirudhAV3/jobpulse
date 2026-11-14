@@ -13,20 +13,29 @@ import type { AuthUserDTO } from "@/lib/types";
 export const SESSION_COOKIE = "jobpulse_session";
 export const DEFAULT_TARGET_ROLE = "Business Analyst (BA)";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+let warnedAboutDerivedSessionSecret = false;
 
 export class AuthConfigurationError extends Error {
   constructor() {
-    super("AUTH_SECRET must be set to a random value of at least 32 bytes");
+    super("Set AUTH_SECRET to a random value of at least 32 bytes or configure DATABASE_URL");
     this.name = "AuthConfigurationError";
   }
 }
 
 function getSecret(): string {
   const secret = process.env.AUTH_SECRET;
-  if (!secret || Buffer.byteLength(secret) < 32) {
-    throw new AuthConfigurationError();
+  if (secret && Buffer.byteLength(secret) >= 32) return secret;
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new AuthConfigurationError();
+
+  if (!warnedAboutDerivedSessionSecret) {
+    console.warn(
+      "[auth] AUTH_SECRET is missing or too short; using a stable key derived from DATABASE_URL. Configure an independent AUTH_SECRET."
+    );
+    warnedAboutDerivedSessionSecret = true;
   }
-  return secret;
+  return crypto.createHmac("sha256", databaseUrl).update("jobpulse:session-signing:v1").digest("hex");
 }
 
 export function assertAuthConfigured(): void {

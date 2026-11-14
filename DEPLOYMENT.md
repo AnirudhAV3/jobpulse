@@ -20,7 +20,7 @@ Do not advertise automatic job scraping or application submission until those in
    | Variable | Purpose |
    | --- | --- |
    | `DATABASE_URL` | Neon pooled PostgreSQL URI, with SSL enabled |
-   | `AUTH_SECRET` | Random session-signing secret, at least 32 bytes |
+   | `AUTH_SECRET` | Recommended independent random session-signing secret, at least 32 bytes; if missing, the app derives a stable fallback from `DATABASE_URL` and logs a warning |
    | `INBOX_ENCRYPTION_KEY` | Random secret used to encrypt mailbox app passwords at rest; keep it stable |
    | `NEXT_PUBLIC_APP_URL` | Public HTTPS URL of the deployed app |
    | `VAPID_PUBLIC_KEY` | Public Web Push application-server key; optional until push is enabled |
